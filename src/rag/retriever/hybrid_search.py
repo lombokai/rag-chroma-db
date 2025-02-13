@@ -1,4 +1,6 @@
 import re
+
+import numpy as np
 from typing import List
 from rank_bm25 import BM25Okapi
 
@@ -17,7 +19,7 @@ class HybridSearch:
     ):
 
         self.data = data
-        self.corpus = [text for text in data["text"]]
+        self.corpus = [text["text"] for text in data]
 
         self.tokenized = list(map(self._tokenize, self.corpus))
 
@@ -35,11 +37,12 @@ class HybridSearch:
         text = text.split(" ")
         return text
     
-    def _ranking(self, candidates: List[str], scores: List[float]) -> List[dict]:
+    def _ranking(self, ids: List[str], texts: List[str], scores: List[float]) -> List[dict]:
         ranked_result = []
-        for candidate, score in zip(candidates, scores):
+        for id, text, score in zip(ids, texts, scores):
             result = {
-                "candidates": candidate,
+                "ids": id,
+                "texts": text,
                 "scores": score
             }
             ranked_result.append(result)
@@ -51,10 +54,13 @@ class HybridSearch:
 
         top_n_idx = scores.argsort()[-top_n:][::-1]
 
-        texts = [self.corpus[i] for i in top_n_idx]
+        data = [self.data[i] for i in top_n_idx]
+
+        ids = [d["id"] for d in data]
+        texts = [d["text"] for d in data]
         scores = [scores[i] for i in top_n_idx]
 
-        ranked_result = self._ranking(texts, scores)
+        ranked_result = self._ranking(ids, texts, scores)
 
         return ranked_result
 
@@ -66,15 +72,44 @@ class HybridSearch:
             top_k = top_n
         )
 
-        candidates = [c for c in search_result["ids"][0]]
-        scores = [s for s in search_result["distances"][0]]
+        ids = [id for id in search_result["ids"][0]]
+        texts = [text for text in search_result["documents"][0]]
+        scores = [score for score in search_result["distances"][0]]
 
-        ranked_result = self._ranking(candidates, scores)
+        ranked_result = self._ranking(ids, texts, scores)
 
         return ranked_result
 
-    def rrf(self):
-        pass
+    def rrf(self, rankings: List[List[int]], weights: List[float], k: int=60):
+        rrf_scores = {}
+        for weight, rank_list in zip(weights, rankings):
+            for rank, doc_id in enumerate(rank_list):
+                rrf_scores[doc_id] = rrf_scores.get(doc_id, 0) + weight / (k + rank + 1)
+        return rrf_scores
 
-    def hybrid_search(self):
-        pass
+    def hybrid_search(
+        self, query: str, top_n: int, sparse_weight: float, dense_weight:float
+    ):
+        query_embedding = self.embedder.embed(query)
+        dense_result = self.db.search_vectors(
+            query_embedding,
+            top_k = top_n
+        )
+        dense_ids = [int(id) for id in dense_result["ids"][0]]
+
+        tokenized_query = self._tokenize(query)
+        sparse_scores = self.sparse.get_scores(tokenized_query)
+        sparse_ids = np.argsort(sparse_scores)[::-1][:top_n]
+        
+        rankings = [dense_ids, sparse_ids.tolist()]
+        weights = [dense_weight, sparse_weight]
+
+        rrf_scores = self.rrf(rankings, weights)
+
+        combined_ids = list(rrf_scores.keys())
+        combined_scores = [rrf_scores[doc_id] for doc_id in combined_ids]
+        combined_candidate = [self.data[id] for id in combined_ids]
+
+        ranked_result = self._ranking(combined_ids, combined_candidate, combined_scores)
+
+        return ranked_result
