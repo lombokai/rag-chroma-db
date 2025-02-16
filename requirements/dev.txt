@@ -2,6 +2,8 @@ chromadb
 sentence-transformers
 python-dotenv
 rank-bm25
+accelerate>=0.26.0
+bitsandbytes
 
 requests
 jupyter
