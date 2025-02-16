@@ -1,0 +1,20 @@
+services:
+  rag-app:
+    build: .
+    container_name: rag-gradio
+    ports:
+      - "7860:7860"
+    depends_on:
+      - chromadb
+    env_file:
+      - .env
+    volumes:
+      - ./weights:/app/weights
+
+  chromadb:
+    image: chromadb/chroma
+    container_name: chromadb
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
