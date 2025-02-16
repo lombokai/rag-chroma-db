@@ -10,7 +10,7 @@ class JsonLoader:
 
     def load_data(self):
         docs = []
-        for i, doc in enumerate(self.data_path):
+        for i, doc in enumerate(os.listdir(self.data_path)):
             if doc.endswith(".json"):
                 file_path = os.path.join(self.data_path, doc)
                 with open(file_path, "r", encoding="utf-8") as f:
@@ -29,6 +29,6 @@ class JsonLoader:
         # remove punctuation
         text = re.sub(r"[^\w\s]", "", text)
 
-        text = text.split(" ")
+        # text = text.split(" ")
         return text
     
