@@ -51,5 +51,5 @@ class RAGPipeline:
             )
             answer = self.generator.generate_response(query, relevant_chunks)
             
-            print(answer)
-            return answer
+            print(answer.content)
+            return answer.content
