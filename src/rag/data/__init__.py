@@ -1,2 +1,2 @@
-from .jsonLoader import *
-from .txtLoader import *
+from .json_loader import *
+from .txt_loader import *
