@@ -111,5 +111,9 @@ class HybridSearch:
         combined_candidate = [self.data[id] for id in combined_ids]
 
         ranked_result = self._ranking(combined_ids, combined_candidate, combined_scores)
+        
+        text = []
+        for res in ranked_result:
+            text.append(res["text"]["text"])
 
-        return ranked_result
+        return text
